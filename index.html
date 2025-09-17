@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VBX VoiceMorph</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #0c0c0c;
+            color: #d1d1d1;
+        }
+        .container {
+            max-width: 800px;
+            padding: 2.5rem;
+            background-color: #1a1a1a;
+            border-radius: 1.5rem;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            border: 1px solid #333;
+        }
+        .file-input-group, .input-group, .settings-group {
+            margin-top: 2rem;
+            text-align: left;
+        }
+        .input-group label, .settings-group label {
+            display: block;
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+            color: #d1d1d1;
+        }
+        .file-input {
+            width: 100%;
+            padding: 0.65rem;
+            border-radius: 0.75rem;
+            background-color: #2c2c2c;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .text-input, .select-input {
+            width: 100%;
+            padding: 0.65rem;
+            border-radius: 0.75rem;
+            background-color: #2c2c2c;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            transition: border-color 0.2s;
+        }
+        .text-input:focus, .select-input:focus {
+            outline: none;
+            border-color: #63b3ed;
+        }
+        .file-input:hover {
+            border-color: #63b3ed;
+        }
+        .file-input::-webkit-file-upload-button {
+            background-color: #63b3ed;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .file-input::-webkit-file-upload-button:hover {
+            background-color: #4299e1;
+        }
+        .button-primary {
+            background-color: #63b3ed;
+            color: white;
+            padding: 0.6rem 2rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 1.5rem;
+        }
+        .button-primary:hover:not(:disabled) {
+            background-color: #4299e1;
+            transform: translateY(-2px);
+        }
+        .button-primary:disabled {
+            background-color: #4a5568;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .message-box {
+            margin-top: 1.5rem;
+            padding: 1.25rem;
+            background-color: #2c2c2c;
+            border-radius: 0.75rem;
+            color: #a0a0a0;
+            border: 1px solid #444;
+        }
+        canvas {
+            background-color: #000;
+            border: 1px solid #444;
+            border-radius: 0.75rem;
+            margin-top: 2rem;
+            display: block;
+            width: 100%;
+        }
+        .grid-settings {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        .range-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #444;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+            border-radius: 5px;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #63b3ed;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .range-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+        .range-value {
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+            color: #a0a0a0;
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 1.25rem;
+            background-color: #4a5568;
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background-color: #63b3ed;
+            transition: width 0.2s ease-in-out;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-4xl font-bold mb-2 text-white">VBX VoiceMorph</h1>
+    <p class="text-gray-400 mb-8">Audio Vocoder inspired by Orange Vocoder.</p>
+
+    <div class="file-input-group">
+        <label for="modulatorFile" class="block text-lg mb-2 text-gray-300">Modulator (Voice):</label>
+        <input type="file" id="modulatorFile" class="file-input" accept=".mp3, .wav">
+    </div>
+
+    <div class="file-input-group">
+        <label for="carrierFile" class="block text-lg mb-2 text-gray-300">Carrier (Instrument):</label>
+        <input type="file" id="carrierFile" class="file-input" accept=".mp3, .wav">
+    </div>
+
+    <div class="settings-group">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-200">Vocoder Settings</h2>
+        <div class="grid-settings">
+            <div>
+                <label for="numBandsSelect">Number of Bands:</label>
+                <select id="numBandsSelect" class="select-input">
+                    <option value="32">32</option>
+                    <option value="64">64</option>
+                    <option value="128" selected>128</option>
+                    <option value="256">256</option>
+                </select>
+            </div>
+            <div>
+                <label for="gainSmoothnessSlider">Gain Smoothness: <span id="gainSmoothnessValue" class="range-value">0.005</span></label>
+                <input type="range" id="gainSmoothnessSlider" class="range-slider" min="0.001" max="0.05" step="0.001" value="0.005">
+            </div>
+            <div>
+                <label for="bandwidthSlider">Bandwidth: <span id="bandwidthValue" class="range-value">0.1</span></label>
+                <input type="range" id="bandwidthSlider" class="range-slider" min="0.1" max="1.0" step="0.05" value="0.1">
+            </div>
+            <div>
+                <label for="filterQSlider">Filter Q: <span id="filterQValue" class="range-value">5.0</span></label>
+                <input type="range" id="filterQSlider" class="range-slider" min="1.0" max="10.0" step="0.5" value="5.0">
+            </div>
+            <div>
+                <label for="vocoderGainSlider">Vocoder Gain: <span id="vocoderGainValue" class="range-value">1.0</span></label>
+                <input type="range" id="vocoderGainSlider" class="range-slider" min="0.5" max="5.0" step="0.1" value="1.0">
+            </div>
+            <div>
+                <label for="finalGainSlider">Final Gain: <span id="finalGainValue" class="range-value">2.0</span></label>
+                <input type="range" id="finalGainSlider" class="range-slider" min="1.0" max="10.0" step="0.5" value="2.0">
+            </div>
+            <div>
+                <label for="modulatorPitchInput">Modulator Pitch (Semitones):</label>
+                <input type="number" id="modulatorPitchInput" class="text-input" min="-24" max="24" value="0">
+            </div>
+            <div>
+                <label for="carrierPitchInput">Carrier Pitch (Semitones):</label>
+                <input type="number" id="carrierPitchInput" class="text-input" min="-24" max="24" value="0">
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-center space-x-4 mt-8">
+        <button id="processButton" class="button-primary" disabled>Process Vocoder</button>
+        <button id="playButton" class="button-primary" disabled>Play Vocoded Audio</button>
+        <button id="normalizeButton" class="button-primary" disabled>Normalize Audio</button>
+        <button id="downloadButton" class="button-primary" disabled>Download Audio</button>
+    </div>
+
+    <div id="statusMessage" class="message-box">
+        Please select both audio files (.mp3 or .wav) to begin.
+    </div>
+
+    <div id="progressBarContainer" class="progress-bar-container hidden">
+        <div id="progressBar" class="progress-bar"></div>
+    </div>
+
+    <canvas id="visualizerCanvas" width="700" height="300"></canvas>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modulatorFileInput = document.getElementById('modulatorFile');
+        const carrierFileInput = document.getElementById('carrierFile');
+        const modulatorPitchInput = document.getElementById('modulatorPitchInput');
+        const carrierPitchInput = document.getElementById('carrierPitchInput');
+        const numBandsSelect = document.getElementById('numBandsSelect');
+        const gainSmoothnessSlider = document.getElementById('gainSmoothnessSlider');
+        const bandwidthSlider = document.getElementById('bandwidthSlider');
+        const filterQSlider = document.getElementById('filterQSlider');
+        const vocoderGainSlider = document.getElementById('vocoderGainSlider');
+        const finalGainSlider = document.getElementById('finalGainSlider');
+        
+        const gainSmoothnessValue = document.getElementById('gainSmoothnessValue');
+        const bandwidthValue = document.getElementById('bandwidthValue');
+        const filterQValue = document.getElementById('filterQValue');
+        const vocoderGainValue = document.getElementById('vocoderGainValue');
+        const finalGainValue = document.getElementById('finalGainValue');
+
+        const processButton = document.getElementById('processButton');
+        const playButton = document.getElementById('playButton');
+        const normalizeButton = document.getElementById('normalizeButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const statusMessageDiv = document.getElementById('statusMessage');
+        const visualizerCanvas = document.getElementById('visualizerCanvas');
+        const canvasContext = visualizerCanvas.getContext('2d');
+
+        const progressBarContainer = document.getElementById('progressBarContainer');
+        const progressBar = document.getElementById('progressBar');
+        
+        // Dynamically set canvas size on load and resize
+        function resizeCanvas() {
+            visualizerCanvas.width = document.querySelector('.container').clientWidth - 64;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let audioContext;
+        if (window.AudioContext || window.webkitAudioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } else {
+            statusMessageDiv.textContent = "Error: Your browser does not support the Web Audio API.";
+            processButton.disabled = true;
+        }
+
+        let modulatorBuffer, carrierBuffer;
+        let vocodedBuffer; 
+        let isPlaying = false;
+        let sourceNode;
+        let analyserNode;
+        let rafId;
+
+        gainSmoothnessSlider.addEventListener('input', (e) => gainSmoothnessValue.textContent = parseFloat(e.target.value).toFixed(3));
+        bandwidthSlider.addEventListener('input', (e) => bandwidthValue.textContent = parseFloat(e.target.value).toFixed(2));
+        filterQSlider.addEventListener('input', (e) => filterQValue.textContent = parseFloat(e.target.value).toFixed(1));
+        vocoderGainSlider.addEventListener('input', (e) => vocoderGainValue.textContent = parseFloat(e.target.value).toFixed(1));
+        finalGainSlider.addEventListener('input', (e) => finalGainValue.textContent = parseFloat(e.target.value).toFixed(1));
+        
+        function loadFile(file, callback) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    callback(audioBuffer);
+                } catch (err) {
+                    console.error('Error decoding audio data:', err);
+                    statusMessageDiv.textContent = 'Error: Could not decode audio file. Please ensure it is a valid MP3 or WAV.';
+                    processButton.disabled = true;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        /**
+         * A tempo-preserving pitch shifter. This function first resamples the audio
+         * to change its pitch, and then manually time-stretches the audio back to
+         * its original duration without affecting tempo.
+         * @param {AudioBuffer} audioBuffer The input audio buffer.
+         * @param {number} pitchSemitones The pitch shift in semitones.
+         * @returns {Promise<AudioBuffer>} A new audio buffer with the shifted pitch but preserved tempo.
+         */
+        async function pitchShift(audioBuffer, pitchSemitones) {
+            if (pitchSemitones === 0) {
+                return audioBuffer;
+            }
+            
+            // Step 1: Resample to change pitch, which also changes duration
+            const pitchFactor = Math.pow(2, pitchSemitones / 12);
+            const sourceDuration = audioBuffer.duration;
+            const resampledLength = Math.ceil(sourceDuration * audioBuffer.sampleRate * pitchFactor);
+            const tempOfflineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, resampledLength, audioBuffer.sampleRate * pitchFactor);
+            
+            const tempSource = tempOfflineContext.createBufferSource();
+            tempSource.buffer = audioBuffer;
+            tempSource.connect(tempOfflineContext.destination);
+            tempSource.start(0);
+            
+            const pitchedBuffer = await tempOfflineContext.startRendering();
+
+            // Step 2: Manually time-stretch back to the original duration by re-sampling
+            const originalLength = audioBuffer.length;
+            const newBuffer = audioContext.createBuffer(pitchedBuffer.numberOfChannels, originalLength, pitchedBuffer.sampleRate);
+            
+            const ratio = pitchedBuffer.length / originalLength;
+
+            for (let channel = 0; channel < pitchedBuffer.numberOfChannels; channel++) {
+                const oldData = pitchedBuffer.getChannelData(channel);
+                const newData = newBuffer.getChannelData(channel);
+                
+                for (let i = 0; i < originalLength; i++) {
+                    const sampleIndex = i * ratio;
+                    const sampleIndexFloor = Math.floor(sampleIndex);
+                    const sampleIndexCeil = Math.ceil(sampleIndex);
+                    const t = sampleIndex - sampleIndexFloor;
+                    
+                    if (sampleIndexCeil < pitchedBuffer.length) {
+                        // Linear interpolation
+                        const sample1 = oldData[sampleIndexFloor];
+                        const sample2 = oldData[sampleIndexCeil];
+                        newData[i] = sample1 + (sample2 - sample1) * t;
+                    } else {
+                        // Handle end of buffer
+                        newData[i] = oldData[sampleIndexFloor];
+                    }
+                }
+            }
+            return newBuffer;
+        }
+
+        async function processVocoderOffline() {
+            if (!modulatorBuffer || !carrierBuffer) {
+                statusMessageDiv.textContent = 'Please select both files first.';
+                return;
+            }
+
+            statusMessageDiv.textContent = 'Processing... This may take a moment.';
+            processButton.disabled = true;
+            playButton.disabled = true;
+            normalizeButton.disabled = true;
+            downloadButton.disabled = true;
+            progressBarContainer.classList.remove('hidden');
+
+            const numBands = parseInt(numBandsSelect.value);
+            const gainSmoothness = parseFloat(gainSmoothnessSlider.value);
+            const filterQ = parseFloat(filterQSlider.value);
+            const vocoderGain = parseFloat(vocoderGainSlider.value);
+            const finalGain = parseFloat(finalGainSlider.value);
+
+            const modulatorPitchSemitones = parseFloat(modulatorPitchInput.value) || 0;
+            const carrierPitchSemitones = parseFloat(carrierPitchInput.value) || 0;
+            
+            statusMessageDiv.textContent = "Adjusting pitch of audio files...";
+            const [pitchedModulatorBuffer, pitchedCarrierBuffer] = await Promise.all([
+                pitchShift(modulatorBuffer, modulatorPitchSemitones),
+                pitchShift(carrierBuffer, carrierPitchSemitones)
+            ]);
+            
+            const duration = pitchedModulatorBuffer.duration;
+            const sampleRate = pitchedModulatorBuffer.sampleRate;
+            
+            const bandGains = [];
+            
+            const frameSize = 512;
+            const numFrames = Math.floor(pitchedModulatorBuffer.length / frameSize);
+
+            for (let i = 0; i < numBands; i++) {
+                const centerFreq = 100 * Math.pow(10, (i / (numBands - 1)) * Math.log10(6000 / 100));
+                
+                const tempContext = new OfflineAudioContext(1, pitchedModulatorBuffer.length, sampleRate);
+                const tempSource = tempContext.createBufferSource();
+                tempSource.buffer = pitchedModulatorBuffer;
+                
+                const filter = tempContext.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = centerFreq;
+                filter.Q.value = filterQ;
+                
+                tempSource.connect(filter);
+                filter.connect(tempContext.destination);
+                tempSource.start(0);
+
+                const renderedBuffer = await tempContext.startRendering();
+                const channelData = renderedBuffer.getChannelData(0);
+
+                const gains = new Float32Array(numFrames);
+                for (let j = 0; j < numFrames; j++) {
+                    let sumOfSquares = 0;
+                    for (let k = 0; k < frameSize; k++) {
+                        const index = j * frameSize + k;
+                        if (index < channelData.length) {
+                            sumOfSquares += channelData[index] * channelData[index];
+                        }
+                    }
+                    const rms = Math.sqrt(sumOfSquares / frameSize);
+                    gains[j] = rms;
+                }
+                bandGains.push(gains);
+
+                // Update progress bar
+                const progress = ((i + 1) / numBands) * 100;
+                progressBar.style.width = `${progress}%`;
+                statusMessageDiv.textContent = `Analyzing modulator: ${Math.round(progress)}% complete.`;
+
+                // Yield to the event loop to allow UI updates
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            statusMessageDiv.textContent = "Synthesizing vocoded audio...";
+            progressBar.style.width = `100%`;
+
+            const finalOfflineContext = new OfflineAudioContext(2, duration * sampleRate, sampleRate);
+            
+            const vocoderMasterGain = finalOfflineContext.createGain();
+            vocoderMasterGain.gain.value = vocoderGain;
+
+            const finalGainNode = finalOfflineContext.createGain();
+            finalGainNode.gain.value = finalGain; 
+            vocoderMasterGain.connect(finalGainNode);
+            finalGainNode.connect(finalOfflineContext.destination);
+
+            const carrierFilterChain = [];
+            for (let i = 0; i < numBands; i++) {
+                const centerFreq = 100 * Math.pow(10, (i / (numBands - 1)) * Math.log10(6000 / 100));
+                const carrierSourceNode = finalOfflineContext.createBufferSource();
+                carrierSourceNode.buffer = pitchedCarrierBuffer;
+                carrierSourceNode.loop = true;
+
+                const filter = finalOfflineContext.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = centerFreq;
+                filter.Q.value = filterQ;
+
+                const gainNode = finalOfflineContext.createGain();
+                gainNode.gain.value = 0;
+                
+                carrierSourceNode.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(vocoderMasterGain);
+                
+                carrierFilterChain.push({ source: carrierSourceNode, gain: gainNode });
+            }
+
+            const frameDuration = frameSize / sampleRate;
+            for (let i = 0; i < numBands; i++) {
+                for (let j = 0; j < numFrames; j++) {
+                    const gainValue = bandGains[i][j];
+                    const time = j * frameDuration;
+                    
+                    if (Number.isFinite(gainValue) && Number.isFinite(time) && Number.isFinite(gainSmoothness)) {
+                        carrierFilterChain[i].gain.gain.setTargetAtTime(gainValue, time, gainSmoothness);
+                    } else {
+                        carrierFilterChain[i].gain.gain.setTargetAtTime(0, time, 0.01);
+                        console.error(`Non-finite value detected. Defaulting gain to 0.`);
+                    }
+                }
+                carrierFilterChain[i].source.start(0);
+            }
+
+            finalOfflineContext.startRendering().then((renderedBuffer) => {
+                vocodedBuffer = renderedBuffer;
+                statusMessageDiv.textContent = 'Processing complete!';
+                progressBarContainer.classList.add('hidden');
+                playButton.disabled = false;
+                normalizeButton.disabled = false;
+                downloadButton.disabled = false;
+                processButton.disabled = false;
+            }).catch((err) => {
+                console.error('Rendering failed:', err);
+                statusMessageDiv.textContent = 'An error occurred during processing.';
+                progressBarContainer.classList.add('hidden');
+                processButton.disabled = false;
+            });
+        }
+        
+        function normalizeBuffer(buffer) {
+            if (!buffer) return;
+            statusMessageDiv.textContent = 'Normalizing audio...';
+            
+            let maxAmp = 0;
+            for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                const channelData = buffer.getChannelData(channel);
+                for (let i = 0; i < channelData.length; i++) {
+                    const sample = Math.abs(channelData[i]);
+                    if (sample > maxAmp) {
+                        maxAmp = sample;
+                    }
+                }
+            }
+
+            if (maxAmp > 0) {
+                const gain = 1.0 / maxAmp;
+                const newBuffer = audioContext.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const oldData = buffer.getChannelData(channel);
+                    const newData = newBuffer.getChannelData(channel);
+                    for (let i = 0; i < oldData.length; i++) {
+                        newData[i] = oldData[i] * gain;
+                    }
+                }
+                vocodedBuffer = newBuffer;
+                statusMessageDiv.textContent = 'Audio normalized.';
+            } else {
+                statusMessageDiv.textContent = 'Audio could not be normalized (it is silent).';
+            }
+        }
+        
+
+        function bufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const bitDepth = 16;
+            const format = 1;
+
+            const bufferSize = buffer.length * numChannels * (bitDepth / 8);
+            const arrayBuffer = new ArrayBuffer(44 + bufferSize);
+            const view = new DataView(arrayBuffer);
+            let offset = 0;
+
+            function writeString(str) {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset + i, str.charCodeAt(i));
+                }
+                offset += str.length;
+            }
+
+            writeString('RIFF');
+            view.setUint32(offset, 36 + bufferSize, true); offset += 4;
+            writeString('WAVE');
+            writeString('fmt ');
+            view.setUint32(offset, 16, true); offset += 4;
+            view.setUint16(offset, format, true); offset += 2;
+            view.setUint16(offset, numChannels, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, sampleRate * numChannels * (bitDepth / 8), true); offset += 4;
+            view.setUint16(offset, numChannels * (bitDepth / 8), true); offset += 2;
+            view.setUint16(offset, bitDepth, true); offset += 2;
+            writeString('data');
+            view.setUint32(offset, bufferSize, true); offset += 4;
+
+            for (let i = 0; i < buffer.length; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    let sample = buffer.getChannelData(channel)[i];
+                    sample = Math.max(-1, Math.min(1, sample));
+                    sample = (sample < 0) ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+        
+        function drawVisualizer() {
+            if (!analyserNode) return;
+            rafId = requestAnimationFrame(drawVisualizer);
+
+            const bufferLength = analyserNode.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyserNode.getByteFrequencyData(dataArray);
+
+            canvasContext.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+            canvasContext.fillStyle = '#000000';
+            canvasContext.fillRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+
+            const barWidth = (visualizerCanvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] / 255) * visualizerCanvas.height * 0.7;
+                const hue = i / bufferLength * 360;
+                canvasContext.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                canvasContext.fillRect(x, visualizerCanvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        
+        modulatorFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                statusMessageDiv.textContent = `Loading modulator: ${file.name}...`;
+                loadFile(file, (buffer) => {
+                    modulatorBuffer = buffer;
+                    if (modulatorBuffer && carrierBuffer) {
+                        processButton.disabled = false;
+                        statusMessageDiv.textContent = 'Both files loaded. Ready to process.';
+                    } else {
+                        statusMessageDiv.textContent = `Modulator loaded. Now select carrier file.`;
+                    }
+                });
+            }
+        });
+
+        carrierFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                statusMessageDiv.textContent = `Loading carrier: ${file.name}...`;
+                loadFile(file, (buffer) => {
+                    carrierBuffer = buffer;
+                    if (modulatorBuffer && carrierBuffer) {
+                        processButton.disabled = false;
+                        statusMessageDiv.textContent = 'Both files loaded. Ready to process.';
+                    } else {
+                        statusMessageDiv.textContent = `Carrier loaded. Now select modulator file.`;
+                    }
+                });
+            }
+        });
+
+        processButton.addEventListener('click', () => {
+            if (!modulatorBuffer || !carrierBuffer) {
+                statusMessageDiv.textContent = 'Please select both audio files to begin.';
+                return;
+            }
+            
+            if (isPlaying) {
+                sourceNode.stop();
+                isPlaying = false;
+                playButton.textContent = 'Play Vocoded Audio';
+                cancelAnimationFrame(rafId);
+            }
+            
+            processVocoderOffline();
+        });
+
+        playButton.addEventListener('click', () => {
+            if (!vocodedBuffer) return;
+            
+            if (isPlaying) {
+                sourceNode.stop();
+                isPlaying = false;
+                playButton.textContent = 'Play Vocoded Audio';
+                cancelAnimationFrame(rafId);
+            } else {
+                sourceNode = audioContext.createBufferSource();
+                sourceNode.buffer = vocodedBuffer;
+                
+                analyserNode = audioContext.createAnalyser();
+                analyserNode.fftSize = 2048;
+                
+                sourceNode.connect(analyserNode);
+                analyserNode.connect(audioContext.destination);
+                
+                sourceNode.start();
+                isPlaying = true;
+                playButton.textContent = 'Stop';
+                
+                sourceNode.onended = () => {
+                    isPlaying = false;
+                    playButton.textContent = 'Play Vocoded Audio';
+                    cancelAnimationFrame(rafId);
+                };
+                
+                drawVisualizer();
+            }
+        });
+
+        normalizeButton.addEventListener('click', () => {
+            if (!vocodedBuffer) return;
+            normalizeBuffer(vocodedBuffer);
+        });
+
+        downloadButton.addEventListener('click', () => {
+            if (!vocodedBuffer) return;
+            statusMessageDiv.textContent = 'Creating download link...';
+            const wavBlob = bufferToWav(vocodedBuffer);
+            const url = URL.createObjectURL(wavBlob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'vbx-voicemorph.wav';
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                statusMessageDiv.textContent = 'Download started!';
+            }, 100);
+        });
+    });
+</script>
+
+</body>
+</html>
